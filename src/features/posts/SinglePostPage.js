@@ -31,6 +31,14 @@ import { ReactionButtons } from './ReactionButtons'
 
 
 
+import { selectPostById } from './postsSlice'
+/*
+  - selectPostById
+    - import selectPostById in slice for reuse
+*/
+
+
+
 export const SinglePostPage = ({ match }) => {
   const { postId } = match.params
 /*
@@ -42,15 +50,19 @@ export const SinglePostPage = ({ match }) => {
 
 
 
+/*
   const post = useSelector(state =>
     state.posts.find(post => post.id === postId)
   )
-/*
   - useSelector
     - we can use the postID from params inside a selector function to find the right post object from the Redux store
     - the component will re-render any time the value returned from useSelector changes to a new reference
 */
-
+const post = useSelector(state => selectPostById(state, postId))
+/*
+  - selectPostById
+    - use selectPostById for reuse
+*/
 
 
 

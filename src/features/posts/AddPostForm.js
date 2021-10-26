@@ -37,14 +37,28 @@ import { nanoid } from '@reduxjs/toolkit'
 
 
 
-import { postAdded } from './postsSlice'
 /*
+import { postAdded } from './postsSlice'                        // this is not use in async branch. Check master when its still used
   - postAdded
     - one of the action creator exported in postsSlice.js
     - arg in dispatch() to update store
       - eg. 
         dispatch( postAdded({ id: nanoid(), title, content }) ) // using default - no prepare
         dispatch( postAdded(title, content, userId) )           // using prepare           
+    - was used to update data in Store... we need to use addNewPost to use API to POST to api
+*/
+
+
+
+
+import { addNewPost } from './postsSlice'
+/*
+  - addNewPost
+    - this is a thunk created in createAsyncThunk in postsSlice
+    - thunks are created using createAsyncThunk
+      - createAsyncThunk
+        - Redux Toolkit's createAsyncThunk API generates thunks that automatically dispatch those "start/success/failure" actions for you
+        - you can now use this to call async requests        
 */
 
 
@@ -55,6 +69,7 @@ export const AddPostForm = () => {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [userId, setUserId] = useState('')
+  const [addRequestStatus, setAddRequestStatus] = useState('idle')
 
   const dispatch = useDispatch()
 
@@ -75,27 +90,34 @@ export const AddPostForm = () => {
   */
 
 
-  const onSavePostClicked = () => {
-    if (title && content) {
-      /*
-        - dispatch( postAdded({ id: nanoid(), title, content }) )
-          - use this if no prepare is use in your createSlice
-          - this will be handled by postAdded in postsSlice.js
-      */
+  const canSave = [title, content, userId].every(Boolean) && addRequestStatus === 'idle' // cool way to use Boolean vanilla js
 
-      dispatch(postAdded(title, content, userId))                   // use this one if your postAdded prepares its own action payload. check postsSlice.js
-      /*
-        - eg. 
-          dispatch( postAdded({ id: nanoid(), title, content }) )   // using default - no prepare
-          dispatch( postAdded(title, content, userId) )             // using prepare           
-      */
 
-      setTitle('')
-      setContent('')
+  const onSavePostClicked = async () => {
+    if (canSave) {
+      try {
+        setAddRequestStatus('pending')
+        await dispatch(addNewPost({ title, content, user: userId })).unwrap()
+        /*
+          - unwrap()
+            - Redux Toolkit adds a .unwrap() function to the returned Promise
+              - which will return a new Promise that either has the actual action.payload value from a fulfilled action
+              - or throws an error if it's the rejected action. 
+            - This lets us handle success and failure in the component using normal try/catch logic. 
+              - So, we'll clear out the input fields to reset the form if the post was successfully created, and log the error to the console if it failed.  
+        */
+        setTitle('')
+        setContent('')
+        setUserId('')
+      } catch (err) {
+        console.error('Failed to save the post: ', err)
+      } finally {
+        setAddRequestStatus('idle')
+      }
     }
   }
 
-  const canSave = Boolean(title) && Boolean(content) && Boolean(userId) // cool way to use Boolean vanilla js
+  
 
   const usersOptions = users.map(user => (
     <option key={user.id} value={user.id}>
