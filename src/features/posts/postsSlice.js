@@ -9,6 +9,17 @@ import { createSlice } from '@reduxjs/toolkit'
 
 
 
+import { createEntityAdapter } from '@reduxjs/toolkit'
+/*
+  - createEntityAdapter
+    - an API provides a standardized way to store your data in a slice 
+      - by taking a collection of items and putting them into the shape of { ids: [], entities: {} }. 
+      - it also generates a set of reducer functions and selectors that know how to work with that data.
+    - all of this for normalizing data
+*/
+
+
+
 import { nanoid } from '@reduxjs/toolkit'
 /*
   - nanoid
@@ -35,12 +46,57 @@ import { client } from '../../api/client'
 
 
 
+import { createSelector } from '@reduxjs/toolkit'
+/*
+  - createSelector
+    - Reselect is a library for creating memoized selector functions
+      - and was specifically designed to be used with Redux. 
+      - It has a createSelector function that generates memoized selectors that will only recalculate results when the inputs change. 
+    - Redux Toolkit exports the createSelector function, so we already have it available.
+*/
 
-const initialState = {
+
+
+const postsAdapter = createEntityAdapter({
+  sortComparer: (a, b) => b.date.localeCompare(a.date)
+})
+/*
+  - createEntityAdapter
+    - this is how you create the adapter object
+  - sortComparer
+    - sortComparer is one of the prebuilt in the adaptor that is created by createEntityAdapter
+      -  which will be used to keep the item IDs array in sorted order by comparing two items (and works the same way as Array.sort())
+  - check usersSlice.js for an empty setup
+  - The adapter object includes:
+    - adapter.getInitialState, which can accept additional state fields like loading state
+    - Prebuilt reducers for common cases, like setAll, addMany, upsertOne, and removeMany
+    - adapter.getSelectors, which generates selectors like selectAll and selectById  
+*/
+
+
+
+/*const initialState = {
   posts: [],
   status: 'idle',
   error: null
-}
+}*/
+
+
+
+const initialState = postsAdapter.getInitialState({
+  status: 'idle',
+  error: null
+})
+/*
+  - getInitialState
+    - getInitialState is also prebuilt in the adaptor that is created by createEntityAdapter
+    - it generates an empty {ids: [], entities: {}} object
+      - You can pass in more fields to getInitialState, and those will be merged in
+*/
+
+
+
+
 
 
 
@@ -151,11 +207,17 @@ const postsSlice = createSlice({
     postUpdated(state, action) {
       const { id, title, content } = action.payload
       // const existingPost = state.find(post => post.id === id)          // use in our master branch
-      const existingPost = state.posts.find(post => post.id === id)   // use in async
                                                                           /*
+      const existingPost = state.posts.find(post => post.id === id)   // use in async
                                                                             - state.posts
                                                                               - we also need to change any uses of state as an array to be state.posts instead, because the array is now one level deeper
                                                                           */
+
+      const existingPost = state.entities[id]
+      /*
+        - state.entities
+          - this is now using the entities auto created above when setting createEntityAdapter adapter object
+      */                                                                        
       if (existingPost) {                   // update values if post found
         existingPost.title = title
         existingPost.content = content
@@ -166,11 +228,17 @@ const postsSlice = createSlice({
     reactionAdded(state, action) {
       const { postId, reaction } = action.payload
       // const existingPost = state.find(post => post.id === postId)      // use in our master branch
-      const existingPost = state.posts.find(post => post.id === postId)
                                                                           /*
+      const existingPost = state.posts.find(post => post.id === postId)
                                                                             - state.posts
                                                                               - we also need to change any uses of state as an array to be state.posts instead, because the array is now one level deeper
                                                                           */
+
+      const existingPost = state.entities[postId]
+      /*
+        - state.entities
+          - this is now using the entities auto created above when setting createEntityAdapter adapter object
+      */
       if (existingPost) {
         existingPost.reactions[reaction]++
         /*
@@ -194,19 +262,32 @@ const postsSlice = createSlice({
       .addCase(fetchPosts.fulfilled, (state, action) => {
         state.status = 'succeeded'
         // Add any fetched posts to the array
-        state.posts = state.posts.concat(action.payload)
         /*
+        state.posts = state.posts.concat(action.payload)
           - action.payload
             - this came from return response.data in fetchPosts thunk one the promise is resolves
+        */
+
+        postsAdapter.upsertMany(state, action.payload)
+        /*
+          - postsAdapter.upsertMany
+            - this is auto created when setting createEntityAdapter adapter object
         */
       })
       .addCase(fetchPosts.rejected, (state, action) => {
         state.status = 'failed'
         state.error = action.error.message
       })
-      .addCase(addNewPost.fulfilled, (state, action) => {
+
+      /*.addCase(addNewPost.fulfilled, (state, action) => {
         state.posts.push(action.payload)
-      })      
+      })*/
+      .addCase(addNewPost.fulfilled, postsAdapter.addOne)
+      /*
+        - postsAdapter.addOne
+          - this is auto created when setting createEntityAdapter adapter object
+      */
+
   }
 /*
   - extraReducers
@@ -257,9 +338,9 @@ export default postsSlice.reducer
 
 
 
-export const selectAllPosts = state => state.posts.posts
-export const selectPostById = (state, postId) =>
-  state.posts.posts.find(post => post.id === postId)
+// export const selectAllPosts = state => state.posts.posts   // starting not to use this when we setup createEntityAdapter
+// export const selectPostById = (state, postId) =>           // starting not to use this when we setup createEntityAdapter
+//  state.posts.posts.find(post => post.id === postId)
 /*
   - selectAllPosts, selectPostById
     - exports these selector functions so that it can be reuse in components
@@ -269,4 +350,49 @@ export const selectPostById = (state, postId) =>
 /*
   - state.posts
     - we also need to change any uses of state as an array to be state.posts instead, because the array is now one level deeper
+*/
+
+
+
+// Export the customized selectors for this adapter using `getSelectors`
+export const {
+  selectAll: selectAllPosts,
+  selectById: selectPostById,
+  selectIds: selectPostIds
+  // Pass in a selector that returns the posts slice of state
+} = postsAdapter.getSelectors(state => state.posts)
+/*
+  - postsAdapter.getSelector
+    - this is auto created when setting createEntityAdapter adapter object
+    - this is auto creation will replace the manual eg. export const selectAllPosts = state => state.posts.posts
+  - selectAll, selectById, selectIds
+    - so these are auto created by postsAdapter.getSelector for us to use
+*/
+
+
+
+export const selectPostsByUser = createSelector(
+  [selectAllPosts, (state, userId) => userId],
+  (posts, userId) => posts.filter(post => post.user === userId)
+)
+/*
+  - createSelector
+    - Reselect is a library for creating memoized selector functions
+      - and was specifically designed to be used with Redux. 
+      - It has a createSelector function that generates memoized selectors that will only recalculate results when the inputs change. 
+    - Redux Toolkit exports the createSelector function, so we already have it available.
+    - args
+      - 1st arg - eg. [selectAllPosts, (state, userId) => userId]
+        - one or more "input selectors"
+        - the result of these selectors will be pass to the 2nd arg
+        - selectAllPosts
+          - 1st result in 1st arg
+        - (state, userId) => userId
+          - 2nd result in 1st arg
+      - 2nd arg
+        - this is an "output selector"
+        - it will have an {n} arg base on how many result the input selectors will pass
+        - (posts, userId) ...
+          - 2nd arg arguments (posts, userId) corresponds to the what the input selectors passed
+    - all of these to improve performance https://redux.js.org/usage/deriving-data-selectors
 */

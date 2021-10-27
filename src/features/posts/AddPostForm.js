@@ -63,6 +63,8 @@ import { addNewPost } from './postsSlice'
 
 
 
+import { selectAllUsers } from '../users/usersSlice'
+
 
 
 export const AddPostForm = () => {
@@ -73,11 +75,12 @@ export const AddPostForm = () => {
 
   const dispatch = useDispatch()
 
-  const users = useSelector(state => state.users)
 /*
+  const users = useSelector(state => state.users)
   - useSelector
     - Our initial component will read the state.users value from the Redux store
-*/    
+*/
+  const users = useSelector(selectAllUsers)    
 
 
 

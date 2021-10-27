@@ -13,6 +13,7 @@ import postsReducer from '../features/posts/postsSlice'
 		- this will be used by reducer object passed in configureStore
 */
 import usersReducer from '../features/users/usersSlice'
+import notificationsReducer from '../features/notifications/notificationsSlice'
 
 
 
@@ -20,7 +21,8 @@ import usersReducer from '../features/users/usersSlice'
 export default configureStore({
 	reducer: {
 		posts: postsReducer,
-		users: usersReducer
+		users: usersReducer,
+		notifications: notificationsReducer
 	}
 })
 /*
