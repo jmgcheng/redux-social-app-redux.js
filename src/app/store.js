@@ -17,17 +17,30 @@ import notificationsReducer from '../features/notifications/notificationsSlice'
 
 
 
+import { apiSlice } from '../features/api/apiSlice'
+/*
+	- apiSlice
+		- started using in rtk query
+	- apiSlice.middleware
+		- the API slice auto generates a custom middleware that we also need to be add to the store
+*/
+
+
 
 export default configureStore({
 	reducer: {
 		posts: postsReducer,
 		users: usersReducer,
-		notifications: notificationsReducer
-	}
+		notifications: notificationsReducer,
+    [apiSlice.reducerPath]: apiSlice.reducer 		// started using this in rtk query
+	},
+  middleware: getDefaultMiddleware => getDefaultMiddleware().concat(apiSlice.middleware)	// started using this in rtk query
 })
 /*
 	- configureStore
 		- this is the recommended way to create store when using redux
+	- apiSlice.middleware
+		- the API slice auto generates a custom middleware that we also need to be add to the store
 */
 
 
