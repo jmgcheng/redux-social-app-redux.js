@@ -17,7 +17,7 @@ import { client } from '../../api/client'
 
 
 const notificationsAdapter = createEntityAdapter({
-  sortComparer: (a, b) => b.date.localeCompare(a.date)
+  sortComparer: (a, b) => b.date.localeCompare(a.date),
 })
 
 
@@ -58,15 +58,11 @@ const notificationsSlice = createSlice({
     allNotificationsRead(state, action) {
       /*state.forEach(notification => {
         notification.read = true
-      })*/
-      Object.values(state.entities).forEach(notification => {
+      })*/      
+      Object.values(state.entities).forEach((notification) => {
         notification.read = true
-      })      
-      /*
-        - state.entities
-          - this is now using the entities auto created above when setting createEntityAdapter adapter object
-      */
-    }
+      })
+    },
   },
 
   /*
@@ -81,38 +77,35 @@ const notificationsSlice = createSlice({
       })      
       // Sort with newest first
       state.sort((a, b) => b.date.localeCompare(a.date))
-
         //- state.sort
         //  - As a reminder, array.sort() always mutates the existing array - this is only safe because we're using createSlice and Immer inside
-
     }
   }*/
 
   extraReducers(builder) {
     builder.addCase(fetchNotifications.fulfilled, (state, action) => {
-      Object.values(state.entities).forEach(notification => {
+      // Add client-side metadata for tracking new notifications
+      const notificationsWithMetadata = action.payload.map((notification) => ({
+        ...notification,
+        read: false,
+        isNew: true,
+      }))
+
+      Object.values(state.entities).forEach((notification) => {
         // Any notifications we've read are no longer new
         notification.isNew = !notification.read
       })
-      notificationsAdapter.upsertMany(state, action.payload)
-    })
-  }
 
+      notificationsAdapter.upsertMany(state, notificationsWithMetadata)
+    })
+  },
 })
 
 export const { allNotificationsRead } = notificationsSlice.actions
 
 export default notificationsSlice.reducer
 
-/*
-export const selectAllNotifications = state => state.notifications
-  - selectAllNotifications
-    - exports these selector functions so that it can be reuse in components
-    - It's often a good idea to encapsulate data lookups by writing reusable selectors.
-      - But, like any abstraction, it's not something you should do all the time, everywhere. Writing selectors means more code to understand and maintain. Don't feel like you need to write selectors for every single field of your state. Try starting without any selectors, and add some later when you find yourself looking up the same values in many parts of your application code.
-*/
-
-export const { selectAll: selectAllNotifications } = notificationsAdapter.getSelectors(state => state.notifications)
+export const { selectAll: selectAllNotifications } = notificationsAdapter.getSelectors((state) => state.notifications)
 /*
   - notificationsAdapter.getSelectors
     - this is auto created when setting createEntityAdapter adapter object

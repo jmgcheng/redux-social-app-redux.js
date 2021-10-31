@@ -1,61 +1,37 @@
-/*
-  notes
-    - this is a react component
-      - note capital letter first
-      - redux use camel case
-*/
-
-
-
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useSelector } from 'react-redux'
-/*
-  - useSelector
-    - React components read data from the store with the useSelector hook
-      - Selector functions receive the whole state object, and should return a value
-      - Selectors will re-run whenever the Redux store is updated, and if the data they return has changed, the component will re-render    
-    - the component will re-render any time the value returned from useSelector changes to a new reference
-*/
-
-
-
 import { Link } from 'react-router-dom'
+import { createSelector } from '@reduxjs/toolkit'
 
 import { selectUserById } from '../users/usersSlice'
-import { selectAllPosts } from '../posts/postsSlice'
-/*
-  - selectUserById, selectAllUsers
-    - import selectAllUsers in slice for reuse
-*/
-
-
-import { selectPostsByUser } from '../posts/postsSlice'
-/*
-	- selectPostsByUser
-		- improve version of selector as it use createSelector() to Memoized
-*/
-
-
+import { useGetPostsQuery } from '../api/apiSlice'
 
 export const UserPage = ({ match }) => {
   const { userId } = match.params
 
-  const user = useSelector(state => selectUserById(state, userId))
+  const user = useSelector((state) => selectUserById(state, userId))
 
-  /*const postsForUser = useSelector(state => {
-    const allPosts = selectAllPosts(state)
-    return allPosts.filter(post => post.user === userId)
-  })*/
-  const postsForUser = useSelector(state => selectPostsByUser(state, userId))
-/*
-	- selectPostsByUser
-		- improve version of selector as it use createSelector() to Memoized
-		- we should see that <UserPage> doesn't re-render this time in redux profiler
-*/
+  const selectPostsForUser = useMemo(() => {
+    // Return a unique selector instance for this page so that
+    // the filtered results are correctly memoized
+    return createSelector(
+      (res) => res.data,
+      (res, userId) => userId,
+      (data, userId) => data.filter((post) => post.user === userId)
+    )
+  }, [])
 
+  // Use the same posts query, but extract only part of its data
+  const { postsForUser } = useGetPostsQuery(undefined, {
+    selectFromResult: (res) => ({
+      ...res,
+      // Include a field called `postsForUser` in the hook result object,
+      // which will be filtered list of posts
+      postsForUser: selectPostsForUser(res, userId),
+    }),
+  })
 
-
-  const postTitles = postsForUser.map(post => (
+  const postTitles = postsForUser.map((post) => (
     <li key={post.id}>
       <Link to={`/posts/${post.id}`}>{post.title}</Link>
     </li>
